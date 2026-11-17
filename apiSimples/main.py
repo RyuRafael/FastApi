@@ -1,66 +1,109 @@
-# API teste 01
-#Frameworks: fastapi e uvecorn(servidor)
-#Compilar a API: uvicorn main:app --reload
+# main.py
+# Ponto de entrada da API: rotas REST para o recurso "corridas"
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
+from fastapi import FastAPI, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+from typing import List
 
-app = FastAPI(title="API de teste",
-              version="1.0.0",
-              description="API simples para ilustrar os conseitos basicos do Rest")
+from database import ENGINE, Base, get_db
+from models import Corrida
+from schemas import CorridaCreate, CorridaUpdate, CorridaOut
+import crud
 
+# Autenticação
+"""from fastapi.security import OAuth2PasswordRequestForm
+from auth import (
+    authenticate_user,
+    create_access_token,
+    get_current_user,
+    ACCESS_TOKEN_EXPIRE_MINUTE,
+    TokenData
+)"""
 
-@app.get("/")
-def boas_vindas():
-    return {"mensagem: " "Bem-vindo(a) á aula de API 02"}
+# Inicializar tabelas do banco (create_all só cria se não existir)
+Base.metadata.create_all(bind=ENGINE)
 
-# ROTA 02: SAUDAÇÃO PERSONALIZADA
-#-----------------------------------
-# Aqui criamos uma rota que recebe um parâmetro chamado nome:
-
-@app.get("/saudacao/{nome}")
-def saudacao(nome: str):
-    return {"Mensagem: " f"{nome}! é um prazer em te conhecer"}
-
-#--------------Terceira execução
-
-@app.get("/corridas", response_model=List[Corrida], summary = "Listar corridas" )
-def listar_corridas():
-    return corridas_db
-
-@app.post(
-    "/corridas",
-    status_code=201,
-    summary="Cria uma nova corrida"
-)
-def criar_corrida(dados: Corrida_Create):
-    global proximo_id 
-
-    # Requisição do que queremos que faça aqui dentro
-    preco_final = dados.preco if dados.preco is not None else calcular_preco(dados.distancia_km)
-
-
-nova_corrida = Corrida(
-    id = proximo id,
-    passageiro = dados.passageiro,
-    motorista = dados.passageiro,
-    origen = dados.origen,
-    destino = dados.destino,
-    distancia = dados.distancia_km,
-    preco = preco_final,
-    status = "solicitada",
-    criado_em = datetime.utcnow()
-
+app = FastAPI(
+    title="API corrida",
+    description="API REST para gerenciamento de corridas com FASTAPI E SQLAllchemy",
+    version="1.0"
 )
 
+app.get("/health", summary="Verificar saúde da API")
+def healthcheck():
+    """HealthCheck simple para verifacar se a API está de pé"""
 
-    corridas_db.append(nova_corrida):
-    proximo_id +=1
-    return nova_corrida
+    return {"Status": "ok"}
+
+@app.get(
+    "/Corridas",
+    response_model=List[CorridaOut],
+    summary="Lista de corridas",
+    tags=["Corridas"]
+    )
+def listar_corridas(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0, description="Número de registros a pular"),
+    limit: int = Query(50, ge=1, le=200, description="Máximo de registros a retornar"),
+    cidade: str | None = Query(None, description="Filtro por cidade")
+    ):
+    """Retornar lista de corridas (filtro opcional para cidades)"""
+    results = crud.list_corrida(db, skip=skip, limit=limit, cidade=cidade)
+    return results
 
 
+@app.get("/corridas/{corrida_id}",
+         response_model=CorridaOut,
+         summary="Obter corrida por id",
+         tags=["corridas"]
+         )
+def obter_corrida(corrida_id: int, db: Session = Depends(get_db)):
+   """Retornar uma corrida por id. se não existir erro 404"""
+   corrida = crud.get_corrida(db, corrida_id)
 
+   if not corrida:
+       raise HTTPException(status_code=404, detail="Corrida não encontrada")
+   return corrida
 
+@app.post("/corridas",
+          response_model=CorridaOut,
+          status_code=201,
+          summary="Criar corrida",
+          tags=["corridas"]
+          )
+def criar_corrida(payload: CorridaCreate, db: Session = Depends(get_db)):
+    """Criar uma nova corrida"""
 
+    corrida = crud.create_corrida(db, payload )
+    return corrida
 
+app.put("/corridas/{corrida_id}",
+        response_model=CorridaOut,
+        status_code=204,
+        summary="Atualizar corrida",
+        tags=["corridas"])
+def atualizar_corrida(corrida_id: int, payload: CorridaUpdate, db: Session(get_db)):
+    "Atualizar corrida existente"
+
+    corrida = crud.get_corrida(db, corrida_id)
+
+    if not corrida:
+        raise HTTPException(status_code=404, detail="Corrida não encontrada")
+
+    corrida = crud.update_corrida(db, corrida, payload)
+    return corrida
+
+app.delete("/corridas/{corrida_id}",
+           response_model=CorridaOut,
+           status_code=204,
+           summary="Deletar corrida",
+           tags=["corridas"])
+def deletar_corrida(corrida_id: int, db: Session(get_db)):
+
+    corrida = crud.get_corrida(db, corrida_id)
+
+    if not corrida:
+        raise HTTPException(status_code=404, detail="Corrida não encontrada")
+    
+    corrida = crud.delete_corrida(db, corrida)
+    return corrida  
