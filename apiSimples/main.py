@@ -5,9 +5,9 @@ from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 
-from database import ENGINE, Base, get_db
-from models import Corrida
-from schemas import CorridaCreate, CorridaUpdate, CorridaOut
+from models import Participante
+from database import ENGINE, get_db, Base, SessionLocal
+from schemas import CorridaCreate, CorridaUpdate, CorridaOut, ParticipantesUpdate, ParticipanteCreate, ParticipantesOut
 import crud
 
 # Autenticação
@@ -36,10 +36,10 @@ def healthcheck():
     return {"Status": "ok"}
 
 @app.get(
-    "/Corridas",
+    "/corridas",
     response_model=List[CorridaOut],
     summary="Lista de corridas",
-    tags=["Corridas"]
+    tags=["corridas"]
     )
 def listar_corridas(
     db: Session = Depends(get_db),
@@ -77,12 +77,12 @@ def criar_corrida(payload: CorridaCreate, db: Session = Depends(get_db)):
     corrida = crud.create_corrida(db, payload )
     return corrida
 
-app.put("/corridas/{corrida_id}",
+@app.put("/corridas",
         response_model=CorridaOut,
-        status_code=204,
         summary="Atualizar corrida",
-        tags=["corridas"])
-def atualizar_corrida(corrida_id: int, payload: CorridaUpdate, db: Session(get_db)):
+        tags=["corridas"]
+        )
+def atualizar_corrida(corrida_id: int, payload: CorridaUpdate, db: Session = Depends(get_db)):
     "Atualizar corrida existente"
 
     corrida = crud.get_corrida(db, corrida_id)
@@ -93,12 +93,13 @@ def atualizar_corrida(corrida_id: int, payload: CorridaUpdate, db: Session(get_d
     corrida = crud.update_corrida(db, corrida, payload)
     return corrida
 
-app.delete("/corridas/{corrida_id}",
+@app.delete("/corridas/{corrida_id}",
            response_model=CorridaOut,
-           status_code=204,
+           status_code=201,
            summary="Deletar corrida",
-           tags=["corridas"])
-def deletar_corrida(corrida_id: int, db: Session(get_db)):
+           tags=["corridas"]
+           )
+def deletar_corrida(corrida_id: int, db: Session = Depends(get_db)):
 
     corrida = crud.get_corrida(db, corrida_id)
 
@@ -107,3 +108,60 @@ def deletar_corrida(corrida_id: int, db: Session(get_db)):
     
     corrida = crud.delete_corrida(db, corrida)
     return corrida  
+
+@app.get(
+        "/participantes",
+         response_model=List[ParticipantesOut],
+         summary="Listar Participantes",
+         tags=["participantes"])
+def list_participantes(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0, description="Número de registroa a pular"),
+    limit: int = Query(50, ge=1, le=200, description="Máximo de registro a retornar"),
+    nome: str | None = Query(None)):
+
+    result = crud.list_corrida(db,skip,limit,nome)
+    return result
+
+@app.get(
+    "/participantes/{participante_id}",
+    response_model=ParticipantesOut,
+    summary="obter participante por id",
+    tags=["participantes"])
+def get_participante(id: int, db: Session = Depends(get_db)):
+
+    result = crud.get_participante(db, id)
+    return result
+
+@app.put(
+    "/participante/{paricipante_id}",
+    response_model=ParticipantesOut,
+    summary="Atualizar participante",
+    tags=["participantes"])
+
+def atualizar_participante(id: int, payload: ParticipantesUpdate, db: Session = Depends(get_db)):
+    "Atualizar corrida existente"
+
+    participante = crud.get_participante(db, id)
+
+    if not participante:
+        raise HTTPException(status_code=404, detail="Participante não encontrado")
+
+    participante = crud.update_participante(db, participante, payload)
+    return participante
+
+@app.delete("/participante/{participante_id}",
+           response_model=ParticipantesOut,
+           status_code=201,
+           summary="Deletar participante",
+           tags=["participantes"]
+           )
+def deletar_participante(id: int, db: Session = Depends(get_db)):
+
+    participante = crud.get_participante(db, id)
+
+    if not participante:
+        raise HTTPException(status_code=404, detail="Participante não encontrada")
+    
+    participante = crud.delete_participante(db, participante)
+    return participante  

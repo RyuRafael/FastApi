@@ -40,3 +40,23 @@ class CorridaOut(BaseModel):
      data_hora: datetime
      organizador: str | None
      created_at: datetime | None
+
+
+#Participantes
+
+class ParticipantesBase(BaseModel):
+     nome: str = Field(min_length=3, max_length=150)
+     idade: int = Field(min_length= 18, max_length=60)
+
+class ParticipanteCreate(ParticipantesBase):
+     pass
+
+class ParticipantesUpdate(BaseModel):
+     nome: str = Field(default=None, min_length=3, max_length=150)
+     idade: int = Field(default=None, min_length=18, max_length=60)
+
+
+class ParticipantesOut(BaseModel):
+     id: int
+     nome: str
+     idade: int
