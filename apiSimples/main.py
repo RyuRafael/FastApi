@@ -29,7 +29,7 @@ app = FastAPI(
     version="1.0"
 )
 
-app.get("/health", summary="Verificar saúde da API")
+@app.get("/health", summary="Verificar saúde da API")
 def healthcheck():
     """HealthCheck simple para verifacar se a API está de pé"""
 
